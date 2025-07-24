@@ -1,43 +1,31 @@
-// api/categorize.js
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { text } = req.body;
-  if (!text) {
-    return res.status(400).json({ error: 'Missing text input' });
-  }
-
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are an assistant that classifies user input into categories: Grocery, Medicine, Complaint, Enquiry, Other."
-          },
-          {
-            role: "user",
-            content: `Categorize this message: "${text}"`
-          }
-        ]
-      })
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an assistant that extracts a list of ordered items from a message. Output should be a JSON array. Each item must include: item name, quantity, unit (optional), and category like Grocery, Beverage, Medicine, etc. Only return JSON.",
+        },
+        { role: "user", content: text },
+      ],
     });
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content || "Unable to categorize.";
-    return res.status(200).json({ category: message });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Failed to fetch from OpenAI' });
+    const parsed = completion.choices[0]?.message?.content?.trim();
+    return res.status(200).json({ parsed });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "OpenAI API Error" });
   }
 }

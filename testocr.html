@@ -1,41 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Camera OCR - Vocal for Local</title>
+  <meta charset="UTF-8">
+  <title>OCR with Preprocessing</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #f0f0f0;
-    }
-    h2 {
-      margin-bottom: 10px;
-    }
-    input[type="file"] {
-      margin-bottom: 10px;
-    }
-    #preview {
-      width: 100%;
-      max-width: 300px;
-      margin-top: 10px;
-      border: 1px solid #ccc;
-    }
-    #output {
-      white-space: pre-wrap;
-      background: #fff;
-      padding: 10px;
-      border: 1px solid #ccc;
-      margin-top: 15px;
-    }
+    body { font-family: sans-serif; padding: 20px; }
+    #preview, #canvas { display: none; margin-top: 10px; max-width: 100%; }
+    #output { white-space: pre-wrap; background: #eee; padding: 10px; margin-top: 15px; }
   </style>
 </head>
 <body>
-  <h2>📷 Take a Photo or Upload Image</h2>
+  <h2>📸 OCR from Camera with Preprocessing</h2>
   <input type="file" accept="image/*" capture="environment" onchange="handleImage(this)" />
-  <img id="preview" src="" alt="Preview" style="display:none;" />
+  <img id="preview" />
+  <canvas id="canvas"></canvas>
   <p id="status">Waiting for image...</p>
   <div id="output"></div>
 
@@ -44,21 +23,50 @@
       const file = input.files[0];
       if (!file) return;
 
-      const img = document.getElementById('preview');
-      img.src = URL.createObjectURL(file);
-      img.style.display = 'block';
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const img = new Image();
+        img.onload = () => preprocessAndOCR(img);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
 
-      document.getElementById('status').textContent = "🔍 Scanning image...";
-      document.getElementById('output').textContent = "";
+    function preprocessAndOCR(img) {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
 
-      Tesseract.recognize(file, 'eng', {
+      // Resize image to fixed width (max 600px) for faster processing
+      const scale = 600 / img.width;
+      canvas.width = 600;
+      canvas.height = img.height * scale;
+
+      // Draw grayscale
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i]*0.3 + data[i+1]*0.59 + data[i+2]*0.11;
+        data[i] = data[i+1] = data[i+2] = gray;
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      // Show preview
+      const preview = document.getElementById("preview");
+      preview.src = canvas.toDataURL();
+      preview.style.display = "block";
+
+      document.getElementById('status').textContent = "🧠 Processing...";
+
+      // Run Tesseract
+      Tesseract.recognize(canvas, 'eng', {
         logger: m => console.log(m)
       }).then(result => {
         document.getElementById('output').textContent = result.data.text;
-        document.getElementById('status').textContent = "✅ Text extracted.";
+        document.getElementById('status').textContent = "✅ Done";
       }).catch(err => {
+        document.getElementById('status').textContent = "❌ Error during OCR";
         console.error(err);
-        document.getElementById('status').textContent = "❌ Error during OCR.";
       });
     }
   </script>

@@ -1,23 +1,61 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Speech to Text</title>
-  </head>
-  <body>
-    <h2>Speak Something</h2>
-    <button onclick="startRecognition()">Start</button>
-    <p id="output"></p>
+<head>
+  <title>Speech to Text with AI Categorization</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; padding: 20px; background-color: #f5f5f5; }
+    button { padding: 10px 20px; font-size: 16px; }
+    #output, #ai-category {
+      margin-top: 20px;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎤 Speak Something</h2>
+  <button onclick="startRecognition()">Start</button>
 
-    <script>
-      function startRecognition() {
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'en-IN';
-        recognition.start();
+  <div id="output">Transcribed text will appear here...</div>
+  <div id="ai-category">AI Category will appear here...</div>
 
-        recognition.onresult = (event) => {
-          document.getElementById('output').innerText = event.results[0][0].transcript;
-        };
+  <script>
+    function startRecognition() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'en-IN';
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById('output').innerText = transcript;
+        sendToAI(transcript);
+      };
+    }
+
+    async function sendToAI(text) {
+      document.getElementById("ai-category").innerText = "Thinking...";
+      try {
+        const response = await fetch('/api/categorize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await response.json();
+        if (data.category) {
+          document.getElementById("ai-category").innerText = "AI Category: " + data.category;
+        } else {
+          document.getElementById("ai-category").innerText = "AI could not categorize.";
+        }
+      } catch (error) {
+        console.error(error);
+        document.getElementById("ai-category").innerText = "Error contacting AI backend.";
       }
-    </script>
-  </body>
+    }
+  </script>
+</body>
 </html>

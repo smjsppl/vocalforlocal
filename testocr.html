@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Camera OCR - Vocal for Local</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    input[type="file"] {
+      margin-bottom: 10px;
+    }
+    #preview {
+      width: 100%;
+      max-width: 300px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+    }
+    #output {
+      white-space: pre-wrap;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h2>📷 Take a Photo or Upload Image</h2>
+  <input type="file" accept="image/*" capture="environment" onchange="handleImage(this)" />
+  <img id="preview" src="" alt="Preview" style="display:none;" />
+  <p id="status">Waiting for image...</p>
+  <div id="output"></div>
+
+  <script>
+    function handleImage(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const img = document.getElementById('preview');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+
+      document.getElementById('status').textContent = "🔍 Scanning image...";
+      document.getElementById('output').textContent = "";
+
+      Tesseract.recognize(file, 'eng', {
+        logger: m => console.log(m)
+      }).then(result => {
+        document.getElementById('output').textContent = result.data.text;
+        document.getElementById('status').textContent = "✅ Text extracted.";
+      }).catch(err => {
+        console.error(err);
+        document.getElementById('status').textContent = "❌ Error during OCR.";
+      });
+    }
+  </script>
+</body>
+</html>
